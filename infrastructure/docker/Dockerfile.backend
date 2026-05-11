@@ -1,0 +1,35 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+
+# ─── Install dependencies ─────────────────────────────────────────────────────
+FROM base AS deps
+COPY package.json package-lock.json turbo.json ./
+COPY packages/shared-types/package.json ./packages/shared-types/
+COPY packages/shared-utils/package.json ./packages/shared-utils/
+COPY packages/config/package.json ./packages/config/
+COPY apps/backend/package.json ./apps/backend/
+RUN npm ci --workspace=@nexevent/backend --workspace=@nexevent/shared-types --workspace=@nexevent/shared-utils --workspace=@nexevent/config
+
+# ─── Build ────────────────────────────────────────────────────────────────────
+FROM deps AS builder
+COPY packages/ ./packages/
+COPY apps/backend/ ./apps/backend/
+COPY tsconfig.json ./
+RUN npm run build --workspace=@nexevent/shared-types
+RUN npm run build --workspace=@nexevent/shared-utils
+RUN npm run build --workspace=@nexevent/config
+RUN npm run build --workspace=@nexevent/backend
+
+# ─── Production image ─────────────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
+COPY --from=builder /app/apps/backend/package.json ./apps/backend/
+
+EXPOSE 4000
+CMD ["node", "apps/backend/dist/server.js"]

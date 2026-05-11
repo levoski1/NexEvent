@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "boilerplate",
+    "gas_estimator",
+    "stablecoin_emitter",
+    "nft_royalty_emitter",
+    "oracle_aggregator",
+    "token_vesting",
+    "staking",
+    "reward_pool",
+]
+resolver = "2"
+
+[workspace.dependencies]
+soroban-sdk = { version = "21.0.0", features = ["testutils"] }
